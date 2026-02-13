@@ -565,6 +565,19 @@ export interface ToolExecutionEndEvent {
 }
 
 // ============================================================================
+// Stream Transform Events
+// ============================================================================
+
+/** Fired during assistant message streaming. Allows extensions to transform content before display. */
+export interface StreamTransformEvent {
+	type: "stream_transform";
+	/** The full text content accumulated so far */
+	text: string;
+	/** Whether this is a partial (streaming) or complete message */
+	isComplete: boolean;
+}
+
+// ============================================================================
 // Model Events
 // ============================================================================
 
@@ -810,6 +823,7 @@ export type ExtensionEvent =
 	| ToolExecutionStartEvent
 	| ToolExecutionUpdateEvent
 	| ToolExecutionEndEvent
+	| StreamTransformEvent
 	| ModelSelectEvent
 	| UserBashEvent
 	| InputEvent
@@ -847,6 +861,12 @@ export interface BeforeAgentStartEventResult {
 	message?: Pick<CustomMessage, "customType" | "content" | "display" | "details">;
 	/** Replace the system prompt for this turn. If multiple extensions return this, they are chained. */
 	systemPrompt?: string;
+}
+
+/** Result from stream_transform event handler */
+export interface StreamTransformEventResult {
+	/** Transformed text to display instead of original. If undefined, original is used. */
+	text?: string;
 }
 
 export interface SessionBeforeSwitchResult {
@@ -947,6 +967,7 @@ export interface ExtensionAPI {
 	on(event: "tool_execution_start", handler: ExtensionHandler<ToolExecutionStartEvent>): void;
 	on(event: "tool_execution_update", handler: ExtensionHandler<ToolExecutionUpdateEvent>): void;
 	on(event: "tool_execution_end", handler: ExtensionHandler<ToolExecutionEndEvent>): void;
+	on(event: "stream_transform", handler: ExtensionHandler<StreamTransformEvent, StreamTransformEventResult>): void;
 	on(event: "model_select", handler: ExtensionHandler<ModelSelectEvent>): void;
 	on(event: "tool_call", handler: ExtensionHandler<ToolCallEvent, ToolCallEventResult>): void;
 	on(event: "tool_result", handler: ExtensionHandler<ToolResultEvent, ToolResultEventResult>): void;

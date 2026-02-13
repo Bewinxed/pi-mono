@@ -656,6 +656,45 @@ export class ExtensionRunner {
 		return undefined;
 	}
 
+	/**
+	 * Emit stream_transform event during assistant message streaming.
+	 * Extensions can transform the text before display.
+	 * @returns Transformed text, or undefined if no transformation.
+	 */
+	async emitStreamTransform(text: string, isComplete: boolean): Promise<string | undefined> {
+		const ctx = this.createContext();
+		let currentText = text;
+		let modified = false;
+
+		for (const ext of this.extensions) {
+			const handlers = ext.handlers.get("stream_transform");
+			if (!handlers || handlers.length === 0) continue;
+
+			for (const handler of handlers) {
+				try {
+					const event = { type: "stream_transform" as const, text: currentText, isComplete };
+					const handlerResult = await handler(event, ctx);
+
+					if (handlerResult && typeof (handlerResult as any).text === "string") {
+						currentText = (handlerResult as any).text;
+						modified = true;
+					}
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					const stack = err instanceof Error ? err.stack : undefined;
+					this.emitError({
+						extensionPath: ext.path,
+						event: "stream_transform",
+						error: message,
+						stack,
+					});
+				}
+			}
+		}
+
+		return modified ? currentText : undefined;
+	}
+
 	async emitContext(messages: AgentMessage[]): Promise<AgentMessage[]> {
 		const ctx = this.createContext();
 		let currentMessages = structuredClone(messages);

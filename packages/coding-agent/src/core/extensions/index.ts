@@ -124,6 +124,9 @@ export type {
 	SetModelHandler,
 	SetThinkingLevelHandler,
 	TerminalInputHandler,
+	// Events - Stream Transform
+	StreamTransformEvent,
+	StreamTransformEventResult,
 	// Events - Tool
 	ToolCallEvent,
 	ToolCallEventResult,

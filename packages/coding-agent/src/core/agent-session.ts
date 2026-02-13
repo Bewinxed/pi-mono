@@ -23,7 +23,7 @@ import type {
 	AgentTool,
 	ThinkingLevel,
 } from "@mariozechner/pi-agent-core";
-import type { AssistantMessage, ImageContent, Message, Model, TextContent } from "@mariozechner/pi-ai";
+import type { AssistantMessage, ImageContent, Message, Model, TextContent, ThinkingContent } from "@mariozechner/pi-ai";
 import { isContextOverflow, modelsAreEqual, resetApiProviders, supportsXhigh } from "@mariozechner/pi-ai";
 import { getDocsPath } from "../config.js";
 import { theme } from "../modes/interactive/theme/theme.js";
@@ -329,6 +329,40 @@ export class AgentSession {
 					const followUpIndex = this._followUpMessages.indexOf(messageText);
 					if (followUpIndex !== -1) {
 						this._followUpMessages.splice(followUpIndex, 1);
+					}
+				}
+			}
+		}
+
+		// Transform assistant streaming content (text + thinking) if extensions want to modify it
+		if (
+			(event.type === "message_update" || event.type === "message_end") &&
+			event.message.role === "assistant" &&
+			this._extensionRunner
+		) {
+			const assistantMsg = event.message as AssistantMessage;
+			const isMessageComplete = event.type === "message_end";
+
+			const transformableBlocks = assistantMsg.content.filter(
+				(block): block is TextContent | ThinkingContent => block.type === "text" || block.type === "thinking",
+			);
+
+			for (let i = 0; i < transformableBlocks.length; i++) {
+				const block = transformableBlocks[i];
+				const isFinalBlockOfMessage = isMessageComplete && i === transformableBlocks.length - 1;
+
+				if (block.type === "text") {
+					const transformed = await this._extensionRunner.emitStreamTransform(block.text, isFinalBlockOfMessage);
+					if (transformed !== undefined) {
+						block.text = transformed;
+					}
+				} else {
+					const transformed = await this._extensionRunner.emitStreamTransform(
+						block.thinking,
+						isFinalBlockOfMessage,
+					);
+					if (transformed !== undefined) {
+						block.thinking = transformed;
 					}
 				}
 			}
